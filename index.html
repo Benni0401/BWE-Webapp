@@ -2,52 +2,219 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3D-Druck Angebotstool</title>
-  <link rel="icon" href="favicon.ico" type="image/x-icon" />
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script defer src="script.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 20px auto;
+      background: #fafafa;
+      color: #333;
+      padding: 20px;
+    }
+    h1, h2 {
+      color: #0077cc;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input, select, button {
+      margin-top: 5px;
+      padding: 8px;
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #0077cc;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #005fa3;
+    }
+    #result {
+      margin-top: 30px;
+      background: #eef5fc;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #cde0f2;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
 <body>
   <h1>3D-Druck Angebotserstellung</h1>
 
   <h2>Kundendaten</h2>
   <label for="customerName">Name:</label>
-  <input type="text" id="customerName">
+  <input type="text" id="customerName" placeholder="Kundenname" />
 
   <label for="customerEmail">E-Mail:</label>
-  <input type="email" id="customerEmail">
+  <input type="email" id="customerEmail" placeholder="E-Mail-Adresse" />
 
-  <label for="upload">3D-Datei (STL):</label>
-  <input type="file" id="upload" accept=".stl">
+  <h2>3D-Datei hochladen (STL)</h2>
+  <input type="file" id="upload" accept=".stl" />
 
   <h2>3D-Druck</h2>
   <label for="material">Material:</label>
-  <select id="material"></select>
+  <select id="material">
+    <option value="" disabled selected>Material auswählen</option>
+  </select>
 
   <label for="pricePerKg">Preis pro kg (€):</label>
-  <input type="number" id="pricePerKg" step="0.01">
+  <input type="number" id="pricePerKg" step="0.01" readonly />
 
-  <label for="weight">Materialgewicht (kg):</label>
-  <input type="number" id="weight" step="0.01">
-
-  <label for="hours">Druckzeit (Stunden):</label>
-  <input type="number" id="hours" step="0.1">
-
-  <label for="rate">Stundensatz (€):</label>
-  <input type="number" id="rate" step="0.01">
-
-  <h2>3D-Scan</h2>
-  <label for="scanEffort">Scan-Aufwand (€):</label>
-  <input type="number" id="scanEffort" step="0.01">
+  <h2>Zusätzliche Kosten</h2>
+  <label for="scanEffort">3D-Scan Aufwand (€):</label>
+  <input type="number" id="scanEffort" step="0.01" value="0" />
 
   <label for="scanPost">Nachbearbeitung (€):</label>
-  <input type="number" id="scanPost" step="0.01">
+  <input type="number" id="scanPost" step="0.01" value="0" />
 
-  <button id="calculateButton">Angebot berechnen</button>
-  <button id="exportPdfButton">PDF exportieren</button>
+  <button id="calculateButton" disabled>Angebot berechnen</button>
 
   <div id="result"></div>
+
+  <script>
+    const materialData = {
+      "PLA Basic": { price: 25, density: 1.24 },
+      "PLA Matte": { price: 27, density: 1.24 },
+      "PLA-CF": { price: 35, density: 1.22 },
+      "ABS": { price: 30, density: 1.04 },
+      "ASA": { price: 35, density: 1.07 },
+      "PETG": { price: 29, density: 1.27 },
+      "PETG-CF": { price: 39, density: 1.27 },
+      "TPU 95A": { price: 32, density: 1.21 },
+      "PA-CF": { price: 60, density: 1.15 },
+      "PAHT-CF": { price: 54, density: 1.25 },
+      "ABS-GF": { price: 35, density: 1.20 },
+      "PC": { price: 40, density: 1.20 },
+      "PC-CF": { price: 55, density: 1.23 },
+      "PET-CF": { price: 42, density: 1.25 },
+      "PLA Silk": { price: 30, density: 1.25 }
+    };
+
+    const materialSelect = document.getElementById('material');
+    const pricePerKgInput = document.getElementById('pricePerKg');
+    const uploadInput = document.getElementById('upload');
+    const calculateBtn = document.getElementById('calculateButton');
+    const resultDiv = document.getElementById('result');
+
+    // Feste Stundensatz
+    const fixedHourlyRate = 50;
+
+    // Material Dropdown befüllen
+    for (const key in materialData) {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = key;
+      materialSelect.appendChild(option);
+    }
+
+    materialSelect.addEventListener('change', () => {
+      const selected = materialSelect.value;
+      if (materialData[selected]) {
+        pricePerKgInput.value = materialData[selected].price;
+      } else {
+        pricePerKgInput.value = '';
+      }
+      checkReadyToCalculate();
+    });
+
+    // Prüft, ob alle nötigen Eingaben gemacht wurden
+    function checkReadyToCalculate() {
+      if (
+        document.getElementById('customerName').value.trim() !== '' &&
+        document.getElementById('customerEmail').value.trim() !== '' &&
+        materialSelect.value !== '' &&
+        uploadInput.files.length > 0
+      ) {
+        calculateBtn.disabled = false;
+      } else {
+        calculateBtn.disabled = true;
+      }
+    }
+
+    document.getElementById('customerName').addEventListener('input', checkReadyToCalculate);
+    document.getElementById('customerEmail').addEventListener('input', checkReadyToCalculate);
+    uploadInput.addEventListener('change', async () => {
+      checkReadyToCalculate();
+
+      // Direkt Datei zum Backend schicken, um Analyse zu starten
+      if (uploadInput.files.length > 0) {
+        const file = uploadInput.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        resultDiv.textContent = 'Datei wird analysiert...';
+
+        try {
+          const response = await fetch('/analyze', {
+            method: 'POST',
+            body: formData
+          });
+          if (!response.ok) throw new Error('Analyse fehlgeschlagen');
+          const data = await response.json();
+
+          // Automatisch Gewicht & Druckzeit übernehmen
+          window.printWeight = data.weight || 0;
+          window.printTime = data.print_time || 0;
+
+          resultDiv.textContent =
+            `Datei analysiert:\n` +
+            `Gewicht: ${data.weight.toFixed(3)} kg\n` +
+            `Geschätzte Druckzeit: ${data.print_time.toFixed(1)} Stunden`;
+
+        } catch (error) {
+          resultDiv.textContent = 'Fehler bei der Dateianalyse: ' + error.message;
+          window.printWeight = 0;
+          window.printTime = 0;
+        }
+      }
+    });
+
+    calculateBtn.addEventListener('click', () => {
+      const name = document.getElementById('customerName').value.trim();
+      const email = document.getElementById('customerEmail').value.trim();
+      const material = materialSelect.value;
+      const pricePerKg = parseFloat(pricePerKgInput.value);
+      const scanEffort = parseFloat(document.getElementById('scanEffort').value) || 0;
+      const scanPost = parseFloat(document.getElementById('scanPost').value) || 0;
+
+      const materialCost = (window.printWeight || 0) * pricePerKg;
+      const printCost = (window.printTime || 0) * fixedHourlyRate;
+      const scanCost = scanEffort + scanPost;
+      const total = materialCost + printCost + scanCost;
+
+      const output = `
+Angebot für: ${name}
+E-Mail: ${email}
+
+Material: ${material}
+Materialgewicht: ${(window.printWeight || 0).toFixed(3)} kg
+Materialkosten: €${materialCost.toFixed(2)}
+
+Druckzeit: ${(window.printTime || 0).toFixed(1)} Stunden
+Stundensatz: €${fixedHourlyRate.toFixed(2)}
+Druckkosten: €${printCost.toFixed(2)}
+
+3D-Scan Aufwand: €${scanEffort.toFixed(2)}
+Nachbearbeitung: €${scanPost.toFixed(2)}
+
+Gesamtkosten: €${total.toFixed(2)}
+      `;
+
+      resultDiv.textContent = output;
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3D-Druck Angebotstool</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <h1>3D-Druck Angebotserstellung</h1>
+
+  <h2>Kundendaten</h2>
+  <label for="customerName">Name:</label>
+  <input type="text" id="customerName">
+
+  <label for="customerEmail">E-Mail:</label>
+  <input type="email" id="customerEmail">
+
+  <label for="upload">3D-Datei (STL):</label>
+  <input type="file" id="upload" accept=".stl">
+
+  <h2>3D-Druck</h2>
+  <label for="material">Material:</label>
+  <select id="material"></select>
+
+  <label for="pricePerKg">Preis pro kg (€):</label>
+  <input type="number" id="pricePerKg" step="0.01">
+
+  <label for="weight">Materialgewicht (kg):</label>
+  <input type="number" id="weight" step="0.01">
+
+  <label for="hours">Druckzeit (Stunden):</label>
+  <input type="number" id="hours" step="0.1">
+
+  <label for="rate">Stundensatz (€):</label>
+  <input type="number" id="rate" step="0.01">
+
+  <h2>3D-Scan</h2>
+  <label for="scanEffort">Scan-Aufwand (€):</label>
+  <input type="number" id="scanEffort" step="0.01">
+
+  <label for="scanPost">Nachbearbeitung (€):</label>
+  <input type="number" id="scanPost" step="0.01">
+
+  <button id="calculateButton">Angebot berechnen</button>
+  <button id="exportPdfButton">PDF exportieren</button>
+
+  <div id="result"></div>
+</body>
+</html>
